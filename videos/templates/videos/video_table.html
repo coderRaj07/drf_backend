@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Video Table with Search</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f7fc;
+            padding: 40px;
+            color: #333;
+            max-width: 900px;
+            margin: auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        /* Search box styles */
+        .search-container {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        input[type="search"] {
+            width: 300px;
+            padding: 10px 15px;
+            border: 2px solid #2980b9;
+            border-radius: 5px 0 0 5px;
+            font-size: 16px;
+            outline: none;
+        }
+        button.search-btn {
+            padding: 10px 18px;
+            border: none;
+            background-color: #2980b9;
+            color: white;
+            font-weight: bold;
+            border-radius: 0 5px 5px 0;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button.search-btn:hover {
+            background-color: #3498db;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        thead {
+            background: #2980b9;
+            color: white;
+        }
+
+        th, td {
+            padding: 15px 20px;
+            text-align: left;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #ecf0f1;
+        }
+
+        tbody tr:hover {
+            background: #d6e9f8;
+        }
+
+        /* Pagination buttons container */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 25px;
+            gap: 15px;
+        }
+
+        button {
+            padding: 10px 18px;
+            border: none;
+            background-color: #2980b9;
+            color: white;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            user-select: none;
+        }
+
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <h1>Video List</h1>
+
+    <div class="search-container">
+        <input type="search" id="searchInput" placeholder="Search videos by title or description..." />
+        <button class="search-btn" id="searchBtn">Search</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Description</th>
+                <th>Published At</th>
+            </tr>
+        </thead>
+        <tbody id="videoTableBody"></tbody>
+    </table>
+
+    <div class="pagination">
+        <button id="prevBtn" disabled>Previous</button>
+        <button id="nextBtn" disabled>Next</button>
+    </div>
+
+    <script>
+        let nextUrl = null;
+        let prevUrl = null;
+        let currentSearch = '';
+
+        const tbody = document.getElementById('videoTableBody');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+
+        // Build URL with optional search query
+        function buildUrl(baseUrl, search) {
+            if (!search) return baseUrl;
+            // Append ?search= or &search= depending on existing query params
+            return baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'search=' + encodeURIComponent(search);
+        }
+
+        function loadVideos(url = '/api/videos/') {
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    tbody.innerHTML = '';  // Clear old rows
+
+                    if (data.results.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No videos found.</td></tr>';
+                    } else {
+                        data.results.forEach(video => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${video.title}</td>
+                                <td>${video.description}</td>
+                                <td>${new Date(video.published_at).toLocaleString()}</td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                    }
+
+                    // Update pagination URLs
+                    nextUrl = data.next ? buildUrl(data.next, currentSearch) : null;
+                    prevUrl = data.previous ? buildUrl(data.previous, currentSearch) : null;
+
+                    // Enable/disable buttons accordingly
+                    nextBtn.disabled = !nextUrl;
+                    prevBtn.disabled = !prevUrl;
+                })
+                .catch(err => {
+                    tbody.innerHTML = '<tr><td colspan="3">Failed to load videos.</td></tr>';
+                    nextBtn.disabled = true;
+                    prevBtn.disabled = true;
+                    console.error(err);
+                });
+        }
+
+        // When clicking Search, reset and load first page with search query
+        searchBtn.addEventListener('click', () => {
+            currentSearch = searchInput.value.trim();
+            loadVideos(buildUrl('/api/videos/', currentSearch));
+        });
+
+        // Trigger search on Enter key
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                searchBtn.click();
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (nextUrl) loadVideos(nextUrl);
+        });
+
+        prevBtn.addEventListener('click', () => {
+            if (prevUrl) loadVideos(prevUrl);
+        });
+
+        // Initial load
+        loadVideos();
+    </script>
+</body>
+</html>
