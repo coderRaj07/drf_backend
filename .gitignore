@@ -1,0 +1,76 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environment
+venv/
+ENV/
+env/
+.venv/
+
+# Django stuff:
+*.log
+*.pot
+*.pyc
+*.mo
+*.db
+*.sqlite3
+*.sqlite3-journal
+*.pkl
+*.xml
+*.csv
+
+# Media and static files
+/media/
+/staticfiles/
+/static_root/
+/media_root/
+
+# Django migrations
+**/migrations/
+!*/migrations/__init__.py
+
+# VSCode settings
+.vscode/
+
+# PyCharm settings
+.idea/
+
+# MyPy
+.mypy_cache/
+
+# Coverage
+htmlcov/
+.coverage
+coverage.xml
+.cache
+
+# Test results
+*.pytest_cache/
+nosetests.xml
+test*.xml
+
+# Environment variables
+.env
+.env.*
+
+# Docker
+*.pid
+*.seed
+*.bak
+*.swp
+.dockerignore
+Dockerfile
+docker-compose*
+
+# Node (if frontend bundled)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Others
+*.DS_Store
+*.egg-info/
+.eggs/
