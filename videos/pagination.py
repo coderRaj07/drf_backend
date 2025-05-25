@@ -1,0 +1,30 @@
+from rest_framework.pagination import PageNumberPagination, CursorPagination
+
+class CustomVideoPagination(PageNumberPagination):
+    """
+    Custom pagination class for videos using page number-based pagination.
+
+    Attributes:
+        page_size (int): Default number of items per page.
+        page_size_query_param (str): Query param to override page size (?page_size=20).
+        max_page_size (int): Maximum limit for items per page.
+    """
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+
+class CursorVideoPagination(CursorPagination):
+    """
+    Custom pagination class for videos using cursor-based pagination.
+    This is useful for large datasets and provides stable pagination for real-time data.
+
+    Attributes:
+        page_size (int): Number of items per page.
+        ordering (str): Field used to order results, descending by published_at.
+        cursor_query_param (str): Query param used to navigate via cursor (?cursor=<val>).
+    """
+    page_size = 10
+    ordering = '-published_at'
+    cursor_query_param = 'cursor'
+
