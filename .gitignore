@@ -62,8 +62,6 @@ test*.xml
 *.bak
 *.swp
 .dockerignore
-Dockerfile
-docker-compose*
 
 # Node (if frontend bundled)
 node_modules/
