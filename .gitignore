@@ -55,6 +55,7 @@ test*.xml
 # Environment variables
 .env
 .env.*
+!.env.example
 
 # Docker
 *.pid
