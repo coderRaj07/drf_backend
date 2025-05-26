@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 import dj_database_url
+from celery.schedules import schedule
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -80,9 +81,9 @@ REST_FRAMEWORK = {
 }
 
 CELERY_BEAT_SCHEDULE = {
-    "fetch-youtube-videos-5sec": {
+    "fetch-youtube-videos-10sec": {
         "task": "videos.tasks.fetch_youtube_videos",
-        "schedule": 10.0,  # every 10 seconds
+        "schedule": schedule(10.0),  # every 10 seconds
     },
 }
 # CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
