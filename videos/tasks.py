@@ -26,6 +26,17 @@ def get_start_of_today_utc():
     start_of_today = datetime(year=now.year, month=now.month, day=now.day, tzinfo=timezone.utc)
     return start_of_today.isoformat()
 
+def get_last_fetch_time():
+    ts = redis_client.get("youtube:last_fetch_time")
+    if ts:
+        return ts.decode()
+    else:
+        # If not set yet, return start of today UTC
+        return get_start_of_today_utc()
+
+def set_last_fetch_time(timestamp: str):
+    redis_client.set("youtube:last_fetch_time", timestamp)
+
 @shared_task
 def fetch_youtube_videos():
     """
@@ -54,9 +65,9 @@ def fetch_youtube_videos():
     """
 
     api_keys = os.getenv("YOUTUBE_API_KEYS", "").split(",")
-    search_query = os.getenv("SEARCH_QUERY", "how to tea") # predefined search query
-    published_after = get_start_of_today_utc()
-    print(f"Fetching videos published after {published_after} (start of today UTC) {api_keys}")
+    search_query = os.getenv("SEARCH_QUERY", "how to tea")
+    published_after = get_last_fetch_time()
+    print(f"Fetching videos published after {published_after} (last fetch time) {api_keys}")
 
     for api_key in api_keys:
         if is_key_blocked(api_key):
@@ -68,7 +79,7 @@ def fetch_youtube_videos():
             "q": search_query,
             "type": "video",
             "order": "date",
-            "maxResults": 5, # for testing purpose it is limited to 5
+            "maxResults": 5,
             "key": api_key,
             "publishedAfter": published_after,
         }
@@ -101,6 +112,11 @@ def fetch_youtube_videos():
                     logger.info(f"{'Created' if created else 'Updated'} video: {vid_id}")
                 except Exception as e:
                     logger.error(f"Error saving video {item}: {str(e)}")
+
+            # Update last fetch time only if there are any items
+            if items:
+                latest_published_at = max(item["snippet"]["publishedAt"] for item in items)
+                set_last_fetch_time(latest_published_at)
             break  # Successful call
         else:
             try:
