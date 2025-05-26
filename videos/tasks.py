@@ -2,14 +2,29 @@ import os
 import json
 import requests
 import logging
+import redis
 from celery import shared_task
 from .models import Video
-from django.utils import timezone
-from datetime import datetime, timezone, timedelta
-
+from datetime import datetime, timezone
 logger = logging.getLogger(__name__)
 
 YOUTUBE_URL = "https://www.googleapis.com/youtube/v3/search"
+REDIS_URL = os.getenv("REDIS_URL")
+redis_client = redis.StrictRedis.from_url(REDIS_URL)
+BLOCK_DURATION = 3600  # 1 hour
+
+def is_key_blocked(api_key: str) -> bool:
+    return redis_client.exists(f"quota_blocked:{api_key}")
+
+def block_api_key(api_key: str):
+    redis_client.setex(f"quota_blocked:{api_key}", BLOCK_DURATION, "1")
+
+from datetime import datetime, timezone
+
+def get_start_of_today_utc():
+    now = datetime.now(timezone.utc)
+    start_of_today = datetime(year=now.year, month=now.month, day=now.day, tzinfo=timezone.utc)
+    return start_of_today.isoformat()
 
 @shared_task
 def fetch_youtube_videos():
@@ -40,12 +55,14 @@ def fetch_youtube_videos():
 
     api_keys = os.getenv("YOUTUBE_API_KEYS", "").split(",")
     search_query = os.getenv("SEARCH_QUERY", "how to tea") # predefined search query
-    dt = datetime.now(timezone.utc)
-    # Strip microseconds and format correctly:
-    published_after = dt.replace(microsecond=0).isoformat() 
-    print(f"Fetching videos published after {published_after} {api_keys}")
+    published_after = get_start_of_today_utc()
+    print(f"Fetching videos published after {published_after} (start of today UTC) {api_keys}")
 
     for api_key in api_keys:
+        if is_key_blocked(api_key):
+            logger.warning(f"Skipping blocked API key: {api_key[:5]}***")
+            continue
+
         params = {
             "part": "snippet",
             "q": search_query,
@@ -84,12 +101,21 @@ def fetch_youtube_videos():
                     logger.info(f"{'Created' if created else 'Updated'} video: {vid_id}")
                 except Exception as e:
                     logger.error(f"Error saving video {item}: {str(e)}")
-
-            break  # Successfully fetched and processed, no need to try other keys
-
-        elif response.status_code == 403:
-            logger.warning(f"API key {api_key[:5]}*** quota exceeded or forbidden. Trying next key.")
-            continue
-
+            break  # Successful call
         else:
-            logger.error(f"Failed with status {response.status_code}: {response.text}")
+            try:
+                error_info = response.json()
+                error_reason = error_info['error']['errors'][0]['reason']
+                logger.warning(f"API key {api_key[:5]}*** failed with reason: {error_reason}")
+            except Exception as e:
+                error_reason = "unknown"
+                logger.error(f"Failed to parse error: {str(e)}")
+
+            if error_reason in ['quotaExceeded', 'dailyLimitExceeded', 'userRateLimitExceeded']:
+                block_api_key(api_key)
+                logger.warning(f"Blocked API key {api_key[:5]}*** for {BLOCK_DURATION//60} minutes due to quota error.")
+                continue  # Try next key
+            else:
+                logger.error(f"Stopping attempts. Non-quota error: {error_reason}")
+                break
+    
