@@ -3,7 +3,7 @@ FROM python:3.13-slim AS builder
 
 WORKDIR /app
     
-    # Install build dependencies
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
