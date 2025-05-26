@@ -55,6 +55,8 @@ Ensure the `pg_trgm` extension is enabled for trigram similarity search:
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX ON videos_video USING GIN (title gin_trgm_ops);
+CREATE INDEX ON videos_video USING GIN (description gin_trgm_ops);
 ```
 
 ### 4. Apply Migrations
