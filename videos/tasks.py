@@ -51,7 +51,7 @@ def fetch_youtube_videos():
             "q": search_query,
             "type": "video",
             "order": "date",
-            "maxResults": 50,
+            "maxResults": 5, # for testing purpose it is limited to 5
             "key": api_key,
             "publishedAfter": published_after,
         }
