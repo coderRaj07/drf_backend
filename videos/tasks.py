@@ -19,8 +19,6 @@ def is_key_blocked(api_key: str) -> bool:
 def block_api_key(api_key: str):
     redis_client.setex(f"quota_blocked:{api_key}", BLOCK_DURATION, "1")
 
-from datetime import datetime, timezone
-
 def get_start_of_today_utc():
     now = datetime.now(timezone.utc)
     start_of_today = datetime(year=now.year, month=now.month, day=now.day, tzinfo=timezone.utc)
