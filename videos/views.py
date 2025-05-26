@@ -4,6 +4,8 @@ from .models import Video
 from .serializers import VideoSerializer
 from .pagination import CursorVideoPagination
 from django.shortcuts import render
+from django.db.models import Q
+from django.utils.dateparse import parse_datetime
 
 class VideoListView(generics.ListAPIView):
     """
@@ -34,21 +36,58 @@ class VideoListView(generics.ListAPIView):
 
     def get_queryset(self):
         queryset = Video.objects.all()
-        query = self.request.query_params.get('search', '').strip()
+        query_params = self.request.query_params
+        search = query_params.get('search', '').strip()
+        category = query_params.get('category')
+        published_after = query_params.get('published_after')
+        published_before = query_params.get('published_before')
+        sort_field = query_params.get('sort', 'published_at')
+        sort_order = query_params.get('order', 'desc')
 
-        if query:
-            search_query = SearchQuery(query, search_type='plain')
+        # Full-text search + fuzzy matching
+        if search:
+            search_query = SearchQuery(search, search_type='plain')
             search_vector = SearchVector('title', weight='A') + SearchVector('description', weight='B')
 
             queryset = queryset.annotate(
                 search=search_vector,
                 rank=SearchRank(search_vector, search_query),
-                similarity=TrigramSimilarity('title', query) + TrigramSimilarity('description', query),
+                similarity=TrigramSimilarity('title', search) + TrigramSimilarity('description', search),
             ).filter(
-                Q(search=search_query) | Q(title__icontains=query) | Q(description__icontains=query)
-            ).order_by('-rank', '-similarity', '-published_at')
+                Q(search=search_query) | Q(title__icontains=search) | Q(description__icontains=search)
+            )
         else:
-            queryset = queryset.order_by('-published_at')
+            queryset = queryset.annotate(
+                rank=SearchRank(SearchVector('title', weight='A') + SearchVector('description', weight='B'), SearchQuery('')),
+                similarity=TrigramSimilarity('title', '') + TrigramSimilarity('description', '')
+            )
+
+        # Apply filters
+        if category:
+            queryset = queryset.filter(category__iexact=category)
+        
+        if published_after:
+            dt = parse_datetime(published_after)
+            if dt:
+                queryset = queryset.filter(published_at__gte=dt)
+
+        if published_before:
+            dt = parse_datetime(published_before)
+            if dt:
+                queryset = queryset.filter(published_at__lte=dt)
+
+        # Sorting
+        allowed_sort_fields = {
+            'title': 'title',
+            'published_at': 'published_at',
+            'rank': 'rank',
+            'similarity': 'similarity',
+        }
+        sort_field = allowed_sort_fields.get(sort_field, 'published_at')
+        if sort_order == 'desc':
+            sort_field = f'-{sort_field}'
+
+        queryset = queryset.order_by(sort_field)
 
         return queryset
 

@@ -100,13 +100,109 @@
         button:hover:not(:disabled) {
             background-color: #3498db;
         }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f7fc;
+            padding: 40px;
+            color: #333;
+            max-width: 900px;
+            margin: auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .search-container {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        input, select {
+            padding: 10px;
+            margin: 5px;
+            font-size: 16px;
+            border: 2px solid #2980b9;
+            border-radius: 5px;
+            outline: none;
+        }
+
+        button.search-btn {
+            padding: 10px 18px;
+            border: none;
+            background-color: #2980b9;
+            color: white;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button.search-btn:hover {
+            background-color: #3498db;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        thead {
+            background: #2980b9;
+            color: white;
+        }
+
+        th, td {
+            padding: 15px 20px;
+            text-align: left;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #ecf0f1;
+        }
+
+        tbody tr:hover {
+            background: #d6e9f8;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 25px;
+            gap: 15px;
+        }
+
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
     <h1>Video List</h1>
 
     <div class="search-container">
-        <input type="search" id="searchInput" placeholder="Search videos by title or description..." />
+        <input type="search" id="searchInput" placeholder="Search by title or description" />
+        <input type="text" id="categoryInput" placeholder="Category" />
+        <input type="datetime-local" id="publishedAfterInput" />
+        <input type="datetime-local" id="publishedBeforeInput" />
+        <select id="sortField">
+            <option value="published_at">Published At</option>
+            <option value="title">Title</option>
+            <option value="rank">Rank</option>
+            <option value="similarity">Similarity</option>
+        </select>
+        <select id="sortOrder">
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
+        </select>
         <button class="search-btn" id="searchBtn">Search</button>
     </div>
 
@@ -129,26 +225,43 @@
     <script>
         let nextUrl = null;
         let prevUrl = null;
-        let currentSearch = '';
+        let baseQuery = {};
 
         const tbody = document.getElementById('videoTableBody');
+        const searchBtn = document.getElementById('searchBtn');
+        const searchInput = document.getElementById('searchInput');
+        const categoryInput = document.getElementById('categoryInput');
+        const publishedAfterInput = document.getElementById('publishedAfterInput');
+        const publishedBeforeInput = document.getElementById('publishedBeforeInput');
+        const sortField = document.getElementById('sortField');
+        const sortOrder = document.getElementById('sortOrder');
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
-        const searchInput = document.getElementById('searchInput');
-        const searchBtn = document.getElementById('searchBtn');
 
-        // Build URL with optional search query
-        function buildUrl(baseUrl, search) {
-            if (!search) return baseUrl;
-            // Append ?search= or &search= depending on existing query params
-            return baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'search=' + encodeURIComponent(search);
+        function buildQueryParams(baseUrl, params) {
+            const url = new URL(baseUrl, window.location.origin);
+            for (const [key, val] of Object.entries(params)) {
+                if (val) url.searchParams.set(key, val);
+            }
+            return url.pathname + url.search;
+        }
+
+        function getSearchParams() {
+            return {
+                search: searchInput.value.trim(),
+                category: categoryInput.value.trim(),
+                published_after: publishedAfterInput.value ? new Date(publishedAfterInput.value).toISOString() : '',
+                published_before: publishedBeforeInput.value ? new Date(publishedBeforeInput.value).toISOString() : '',
+                sort: sortField.value,
+                order: sortOrder.value
+            };
         }
 
         function loadVideos(url = '/api/videos/') {
             fetch(url)
                 .then(res => res.json())
                 .then(data => {
-                    tbody.innerHTML = '';  // Clear old rows
+                    tbody.innerHTML = '';
 
                     if (data.results.length === 0) {
                         tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No videos found.</td></tr>';
@@ -164,33 +277,27 @@
                         });
                     }
 
-                    // Update pagination URLs
-                    nextUrl = data.next ? buildUrl(data.next, currentSearch) : null;
-                    prevUrl = data.previous ? buildUrl(data.previous, currentSearch) : null;
+                    // Pagination
+                    nextUrl = data.next ? buildQueryParams(data.next, {}) : null;
+                    prevUrl = data.previous ? buildQueryParams(data.previous, {}) : null;
 
-                    // Enable/disable buttons accordingly
                     nextBtn.disabled = !nextUrl;
                     prevBtn.disabled = !prevUrl;
                 })
                 .catch(err => {
-                    tbody.innerHTML = '<tr><td colspan="3">Failed to load videos.</td></tr>';
-                    nextBtn.disabled = true;
-                    prevBtn.disabled = true;
                     console.error(err);
+                    tbody.innerHTML = '<tr><td colspan="3">Error loading videos.</td></tr>';
                 });
         }
 
-        // When clicking Search, reset and load first page with search query
         searchBtn.addEventListener('click', () => {
-            currentSearch = searchInput.value.trim();
-            loadVideos(buildUrl('/api/videos/', currentSearch));
+            baseQuery = getSearchParams();
+            const url = buildQueryParams('/api/videos/', baseQuery);
+            loadVideos(url);
         });
 
-        // Trigger search on Enter key
-        searchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                searchBtn.click();
-            }
+        searchInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') searchBtn.click();
         });
 
         nextBtn.addEventListener('click', () => {
@@ -201,7 +308,7 @@
             if (prevUrl) loadVideos(prevUrl);
         });
 
-        // Initial load
+        // Initial Load
         loadVideos();
     </script>
 </body>
