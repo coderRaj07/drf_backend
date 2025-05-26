@@ -16,13 +16,21 @@ class CustomVideoPagination(PageNumberPagination):
 
 class CursorVideoPagination(CursorPagination):
     """
-    Custom pagination class for videos using cursor-based pagination.
-    This is useful for large datasets and provides stable pagination for real-time data.
+    Custom cursor-based pagination class for video listings.
 
-    Attributes:
-        page_size (int): Number of items per page.
-        ordering (str): Field used to order results, descending by published_at.
-        cursor_query_param (str): Query param used to navigate via cursor (?cursor=<val>).
+    This paginator allows dynamic ordering based on query parameters and 
+    is optimized for large or real-time datasets.
+
+    Query Parameters:
+        - sort (str): The field to sort by. Allowed values: 'published_at', 'title', 'rank', 'similarity'.
+                      Defaults to 'published_at'.
+        - order (str): The order direction. Can be 'asc' or 'desc'. Defaults to 'desc'.
+        - cursor (str): The pagination cursor provided by the response to fetch the next page.
+
+    Notes:
+        - The actual pagination behavior (like page size and cursor handling) is inherited 
+          from `CursorPagination`.
+        - The `ordering` is set dynamically per request based on the query parameters.
     """
     def paginate_queryset(self, queryset, request, view=None):
         order_param = request.query_params.get('order', 'desc')
