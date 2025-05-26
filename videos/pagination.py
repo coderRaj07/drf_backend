@@ -24,7 +24,18 @@ class CursorVideoPagination(CursorPagination):
         ordering (str): Field used to order results, descending by published_at.
         cursor_query_param (str): Query param used to navigate via cursor (?cursor=<val>).
     """
-    page_size = 10
-    ordering = '-published_at'
-    cursor_query_param = 'cursor'
+    def paginate_queryset(self, queryset, request, view=None):
+        order_param = request.query_params.get('order', 'desc')
+        sort_param = request.query_params.get('sort', 'published_at')
+        
+        # Allow only safe fields
+        allowed_sort_fields = ['published_at', 'title', 'rank', 'similarity']
+        if sort_param not in allowed_sort_fields:
+            sort_param = 'published_at'
+
+        prefix = '-' if order_param == 'desc' else ''
+        self.ordering = f'{prefix}{sort_param}'
+
+        return super().paginate_queryset(queryset, request, view=view)
+
 

@@ -301,11 +301,11 @@
         });
 
         nextBtn.addEventListener('click', () => {
-            if (nextUrl) loadVideos(nextUrl);
+            if (nextUrl) loadVideos(buildQueryParams(nextUrl, baseQuery));
         });
 
         prevBtn.addEventListener('click', () => {
-            if (prevUrl) loadVideos(prevUrl);
+            if (prevUrl) loadVideos(buildQueryParams(prevUrl, baseQuery));
         });
 
         // Initial Load
