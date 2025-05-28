@@ -20,7 +20,7 @@ services:
 
   celery:
     build: .
-    command: celery -A fam_backend worker -l info
+    command: celery -A fam_backend worker -l info -Q default,youtube_deadletter
     depends_on:
       # - redis
       - web
